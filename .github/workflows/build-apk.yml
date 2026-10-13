@@ -28,7 +28,9 @@ jobs:
 
       - name: Fetch dependencies
         working-directory: app
-        run: flutter pub get
+        run: |
+          set -o pipefail
+          flutter pub get 2>&1 | tee pub-get.log
 
       # local.properties is gitignored (it holds machine-local paths), but the
       # Gradle settings file reads flutter.sdk from it and fails without it.
@@ -64,19 +66,42 @@ jobs:
             --target-platform android-arm64 \
             --split-per-abi 2>&1 | tee build-arm64.log
 
-      # Ship the logs whatever happened. When the build fails, the log artifact
-      # is the only place the real error is visible.
+      # Ship the logs whatever happened. This must run even when an EARLIER
+      # step failed: `pub get` failing kills the job immediately, so without
+      # `if: always()` the logs of the failing step would never be uploaded.
       - name: Upload compile logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: |
+            app/pub-get.log
             app/bundle.log
             app/build-universal.log
             app/build-arm64.log
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: warn
+
+      # Echo the tail of every log into the run summary so the failure reason is
+      # visible on the run page itself, without downloading anything.
+      - name: Summarize logs into the run page
+        if: always()
+        run: |
+          {
+            echo "### pub get (tail)"
+            tail -40 app/pub-get.log 2>/dev/null || echo "(no pub-get.log)"
+            echo ""
+            echo "### bundle (tail)"
+            tail -60 app/bundle.log 2>/dev/null || echo "(no bundle.log)"
+            echo ""
+            echo "### dart errors across all logs"
+            cat app/pub-get.log app/bundle.log app/build-universal.log app/build-arm64.log 2>/dev/null \
+              | grep -E "\.dart:[0-9]+:[0-9]+:|Error:|Because:|version solving failed|error:" \
+              | sort -u | head -40 || echo "(none)"
+            echo ""
+            echo "### APKs produced"
+            ls -lh app/build/app/outputs/flutter-apk/ 2>/dev/null || echo "(no apk)"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4

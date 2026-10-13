@@ -11,16 +11,19 @@ dependencies:
     sdk: flutter
 
   # 状态管理（架构 §3.3：不用 code-gen，不引 build_runner）
-  flutter_riverpod: ^2.6.1
+  # 版本钉死不用 ^：riverpod 2.x 与 3.x 是破坏性大版本（3.x 删掉了
+  # AlwaysAliveProviderBase，StateNotifierProvider 也移出了主导出），
+  # 让 pub 自由解析会拉到 3.x 直接编不过。
+  flutter_riverpod: 2.6.1
 
   # 路由
-  go_router: ^14.6.2
+  go_router: 14.6.2
 
   # 播放内核：系统播放器（Android 走 ExoPlayer 原生解码）
   # 原来用 media_kit(libmpv) 格式兼容更全，但它的原生库要从 GitHub 下载，
   # 国内网络不稳会导致构建失败（而且每次多等好几分钟）。
   # 你的视频主要是 h264+aac，系统播放器完全支持；少量 hevc 一加 Ace 6 也能硬解。
-  video_player: ^2.10.0
+  video_player: 2.10.0
 
   # 网络 + Range 下载（架构 §3.8）
   dio: ^5.7.0
