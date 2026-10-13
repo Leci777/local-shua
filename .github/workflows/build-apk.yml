@@ -38,10 +38,18 @@ jobs:
           printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" >> app/android/local.properties
           cat app/android/local.properties
 
-      # Build the universal APK first. It is the one most phones can install,
-      # and its output path is the most reliable signal that a build worked.
-      # No `set +e` here: a real failure must fail the job, otherwise a green
-      # check mark can hide "no APK produced" (which happened once already).
+      # Compile the Dart kernel first. This step needs no Gradle and no NDK, so
+      # it fails in ~1 minute and points straight at Dart source errors.
+      # A release-mode bundle is required: some errors (a `const <int>{}`
+      # initializer, for example) only appear in the AOT pass, not in JIT.
+      - name: Compile Dart kernel (fast failure, no Gradle)
+        working-directory: app
+        run: |
+          set -o pipefail
+          flutter build bundle --release 2>&1 | tee bundle.log
+
+      # Build the universal APK. No `set +e` here: a real failure must fail the
+      # job, otherwise a green check mark can hide "no APK produced".
       - name: Build universal APK
         working-directory: app
         run: |
@@ -64,6 +72,7 @@ jobs:
         with:
           name: build-logs
           path: |
+            app/bundle.log
             app/build-universal.log
             app/build-arm64.log
           retention-days: 30
