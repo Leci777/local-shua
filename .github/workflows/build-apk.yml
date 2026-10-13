@@ -1,47 +1,49 @@
-name: 构建 Android APK
+name: Build Android APK
 
-# 云端编译 Flutter APK。
-# 起因：本机的 dart 运行时被系统策略限制，无法创建命名管道（CreateFile failed 231），
-# 而 Dart 编译器 frontend_server 必须用双向管道通信，所以本机编译不出 APK。
-# 云端环境无此限制，直接标准构建即可。
+# Cloud build for the Flutter APK.
+# Background: on the local machine, the Dart runtime cannot create named pipes
+# (CreateFile failed 231) due to a system policy restriction. The Dart compiler
+# (frontend_server) requires bidirectional pipe communication, so local builds
+# are impossible. The Linux runner here has no such restriction.
 on:
   push:
     branches: [ main, master, cloud-build ]
-  workflow_dispatch:   # 支持手动触发
+  workflow_dispatch:
 
 jobs:
   build-apk:
-    name: 构建 APK
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: 检出代码
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 安装 Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.7'
           channel: stable
           cache: true
 
-      - name: 拉取依赖
+      - name: Fetch dependencies
         working-directory: app
         run: flutter pub get
 
-      # 静态检查的结果直接打进构建日志——Dart 的编译错误信息最全，
-      # 这一步能提前暴露代码问题，不用等 10 分钟才知道白跑。
-      - name: 静态检查
+      # Print analyze output into the build log. Dart compile errors show up here
+      # first, so we do not waste 10 minutes on a build that will fail anyway.
+      - name: Analyze
         working-directory: app
         run: |
           set +e
           flutter analyze --no-fatal-infos 2>&1 | tee analyze.log
-          echo "analyze 退出码: ${PIPESTATUS[0]}"
-          echo "=====错误与警告汇总====="
-          grep -E "^\s+(error|warning)" analyze.log | head -60 || echo "（无error/warning）"
+          echo "=====ERRORS AND WARNINGS====="
+          grep -E "(error|warning) •" analyze.log | head -60 || true
+          echo "=====ANALYZE FULL OUTPUT====="
+          cat analyze.log
           exit 0
 
-      - name: 构建 APK（arm64 为主，一加 Ace 6 是 arm64）
+      - name: Build APK (arm64 first, OnePlus Ace 6 is arm64)
         working-directory: app
         run: |
           set +e
@@ -49,20 +51,19 @@ jobs:
             --target-platform android-arm64 \
             --split-per-abi 2>&1 | tee build-arm64.log
           code=${PIPESTATUS[0]}
-          echo "=====构建输出全文====="
+          echo "=====BUILD FULL OUTPUT====="
           cat build-arm64.log
           exit $code
 
-      - name: 同时构建通用包（兼容所有安卓机）
+      - name: Build universal APK (compatible with all Android devices)
         working-directory: app
         if: always()
         run: flutter build apk --release
 
-      - name: 上传 APK 产物
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: local-shua-apk
-          path: |
-            app/build/app/outputs/flutter-apk/*.apk
+          path: app/build/app/outputs/flutter-apk/*.apk
           retention-days: 90
           if-no-files-found: error
