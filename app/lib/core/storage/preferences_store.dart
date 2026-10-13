@@ -24,14 +24,16 @@ class PreferencesStore {
   String? get serverName => _prefs.getString(Constants.keyServerName);
   Future<void> setServerName(String name) => _prefs.setString(Constants.keyServerName, name);
 
-  /// 退出配对：清 token 和地址，回连接页
+  /// 退出连接：清地址和 token，回连接页。
+  /// 个人自用模式（服务端默认不校验 token）下，光清地址就够回到连接页
   Future<void> clearConnection() async {
     await _prefs.remove(Constants.keyToken);
     await _prefs.remove(Constants.keyBaseUrl);
     await _prefs.remove(Constants.keyServerName);
   }
 
-  bool get isPaired => (token ?? '').isNotEmpty && (baseUrl ?? '').isNotEmpty;
+  /// 有地址就能用（token 只在服务端开了鉴权时才必需）
+  bool get isConnected => (baseUrl ?? '').isNotEmpty;
 
   // ===== 播放设置（客户端会话值优先，服务端设置为新设备默认，架构 §4.5 差异 8）=====
 
