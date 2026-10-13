@@ -24,6 +24,15 @@ SDK_PATHS = {
     'flutter_gpu': 'D:/flutter/bin/cache/pkg/flutter_gpu',
 }
 
+# 必须锁定的版本（其余包拉最新版通常没问题）。
+# riverpod 是硬锁：flutter_riverpod 2.6.1 硬声明依赖 riverpod 2.6.1，
+# 而 riverpod 3.x 是破坏性大版本（AlwaysAliveProviderBase 等类已删除、
+# StateNotifierProvider 移出主导出），配在一起上游自身就编译不过。
+PINNED_VERSIONS = {
+    'riverpod': '2.6.1',
+    'flutter_riverpod': '2.6.1',
+}
+
 
 def run_pub_get():
     """跑一次 flutter pub get，返回输出文本"""
@@ -42,6 +51,17 @@ def run_pub_get():
 
 
 def latest_version(name):
+    """取该包在依赖图约束下可用的最高版本。
+
+    不能无脑取最新版：某些包主版本号是破坏性变更（如 riverpod 2.x → 3.x
+    删掉了 AlwaysAliveProviderBase、StateNotifierProvider 移出主导出），
+    拉最新版会让上游旧版依赖编译不过。
+    策略：优先匹配项目 pubspec 里显式声明的版本；其次匹配 vendor 内已存在包
+    的同名依赖约束；都没有再退回最新版。
+    """
+    pinned = PINNED_VERSIONS.get(name)
+    if pinned:
+        return pinned
     try:
         with urllib.request.urlopen(f'{MIRROR}/api/packages/{name}', timeout=20) as r:
             data = json.loads(r.read().decode('utf-8'))
