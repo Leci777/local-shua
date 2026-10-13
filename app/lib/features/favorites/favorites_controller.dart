@@ -27,9 +27,15 @@ class FavoriteIdsNotifier extends StateNotifier<Set<int>> {
     final previous = state;
     // 复制一份再改：直接 state..remove() 是原地改，Riverpod 靠比较引用决定要不要
     // 刷新界面，原地改界面不会重建，而且失败时也没法干净回滚。
-    state = favorite
-        ? Set<int>.of(state)..add(videoId)
-        : (Set<int>.of(state)..remove(videoId));
+    //
+    // 注意括号：..add() 的优先级比 ?: 高，不括起来编译器会把三元表达式当级联的一部分解析。
+    final next = Set<int>.of(state);
+    if (favorite) {
+      next.add(videoId);
+    } else {
+      next.remove(videoId);
+    }
+    state = next;
     try {
       await _repo.set(videoId, favorite);
     } catch (_) {

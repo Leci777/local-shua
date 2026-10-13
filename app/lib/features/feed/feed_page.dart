@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 import '../../router/providers.dart';
 import '../player/playback_controller.dart';
 import '../player/video_surface.dart';
+import 'video_overlay.dart';
 
 /// 信息流首页（UI-DESIGN §4.1）：全屏竖屏、上下滑切换、点击显隐控制层。
 /// 一屏一个视频，全屏播放；下滑下一条、上调上一条。
