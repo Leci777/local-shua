@@ -48,30 +48,46 @@ class PlayerPool {
   VideoPlayerController? _active;
   VideoPlayerController? _standby;
 
-  VideoPlayerController get active =>
-      _active ??= VideoPlayerController.networkUrl(Uri.parse(_placeholderUrl));
   VideoPlayerController? get activeOrNull => _active;
   bool get hasStandby => _standby != null;
 
-  /// 站位地址：真正的地址在 open 时才给，这个只是让类型完整
-  static const _placeholderUrl = 'http://127.0.0.1/placeholder';
-
-  /// 取可用控制器来播。standby 优先提升为 active（它已经预载好了，起播最快）。
-  VideoPlayerController acquire() {
-    if (_standby != null) {
-      final promoted = _standby!;
-      _standby = null;
-      final old = _active;
-      _active = promoted;
-      if (old != null && !identical(old, promoted)) {
-        unawaited(old.dispose().catchError((Object _) {}));
-      }
-      return promoted;
+  /// 当前正在播的控制器；没播过返回 null（不要凭空造一个占位的，那只会拿到无效地址）
+  VideoPlayerController get active {
+    final a = _active;
+    if (a == null) {
+      throw StateError('播放器还没打开，先调 acquire(url)');
     }
-    return active;
+    return a;
   }
 
-  /// 预载下一个视频到 standby（只初始化 + 起播到首帧，不真正播放）
+  /// 取控制器来播指定地址。
+  ///
+  /// video_player 的地址在构造时就定死，没法像 media_kit 那样 open(url) 改地址，
+  /// 所以这里 acquire 时就把真实地址绑进去。
+  /// standby 若已预载好这条（或干脆不管它，直接用新控制器）就用它，否则新建。
+  Future<VideoPlayerController> acquire(String mediaUrl) async {
+    final standby = _standby;
+    if (standby != null) {
+      _standby = null;
+      final old = _active;
+      _active = standby;
+      if (old != null && !identical(old, standby)) {
+        unawaited(old.dispose().catchError((Object _) {}));
+      }
+      return standby;
+    }
+
+    // standby 没有就直接换一个绑好地址的
+    final ctrl = _make(mediaUrl);
+    final old = _active;
+    _active = ctrl;
+    if (old != null && !identical(old, ctrl)) {
+      unawaited(old.dispose().catchError((Object _) {}));
+    }
+    return ctrl;
+  }
+
+  /// 预载下一个视频到 standby（只初始化到首帧，不真正播放）
   void preload(String mediaUrl) {
     final old = _standby;
     final ctrl = _make(mediaUrl);
@@ -81,7 +97,7 @@ class PlayerPool {
     }
     dLog('预载下一个：${mediaUrl.split('/').last}');
     // initialize 会走到 setSource + prepare，首帧解封装就绪；
-    // play() 再 pause() 是为了让 ExoPlayer 停在首帧，避免自动往下播
+    // 然后 pause() 让它停在首帧，避免自动往下播
     unawaited(() async {
       try {
         await ctrl.initialize();

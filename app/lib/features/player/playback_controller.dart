@@ -150,8 +150,10 @@ class PlaybackController extends StateNotifier<PlaybackState> {
       folderName: video.folderName,
     );
 
-    // 系统播放器不支持「先 open 再 seek」，得先 initialize 再跳进度
-    final player = _pool.acquire();
+    // 系统播放器不支持「先 open 再 seek」，得先 initialize 再跳进度。
+    // 视频地址在 acquire 时就绑死（video_player 不能中途换源）。
+    // TODO(W4-01): 下载功能做完后，这里要先查本地有没有下过的再决定用不用网络
+    final player = await _pool.acquire(ref.streamUrl);
     _bindStreams(player);
 
     try {
