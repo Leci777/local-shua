@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # TODO 不许进主干：要么做完，要么删掉写清楚为什么留
+    todo: ignore
+
+linter:
+  rules:
+    - always_declare_return_types
+    - prefer_single_quotes
+    - unawaited_futures
