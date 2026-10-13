@@ -38,8 +38,10 @@ class DownloadTask {
       );
 
   /// 进度 0~1；totalBytes 未知（服务端没给 Content-Length）时返回 null
-  double? get progress =>
-      totalBytes > 0 ? (receivedBytes / totalBytes).clamp(0.0, 1.0) : null;
+  /// 注意 num.clamp 返回的是 num，要再转回 double 才能给进度条用
+  double? get progress => totalBytes > 0
+      ? (receivedBytes / totalBytes).clamp(0.0, 1.0).toDouble()
+      : null;
 
   Map<String, dynamic> toRow() => {
         'video_id': videoId,

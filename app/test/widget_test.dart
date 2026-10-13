@@ -1,30 +1,14 @@
-// This is a basic Flutter widget test.
+// 这里原本是 flutter create 生成的样板测试（引用了本项目从来没有的 MyApp）。
+// 当前依赖里 flutter_test 已经去掉、package_config 里也解析不到，
+// 留着这份文件会让 flutter analyze / flutter test 直接报错，所以清空。
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-
-import 'package:local_shua/main.dart';
+// TODO(W5-01): 想补测试的话，先把 flutter_test 加回 dev_dependencies：
+//   dev_dependencies:
+//     flutter_test:
+//       sdk: flutter
+// 然后在这里写真用例（洗牌袋不重复、进度换算、ApiException 归一）。
+library;
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
-
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  });
+  // 暂无测试
 }

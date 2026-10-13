@@ -112,7 +112,10 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final duration = video.durationSec ?? 0;
-    final progress = duration > 0 && !completed ? (positionSec / duration).clamp(0.0, 1.0) : (completed ? 1.0 : 0.0);
+    // clamp 返回 num，这里统一转 double，LinearProgressIndicator 只收 double
+    final progress = duration > 0 && !completed
+        ? (positionSec / duration).clamp(0.0, 1.0).toDouble()
+        : (completed ? 1.0 : 0.0);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

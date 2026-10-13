@@ -1,7 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants.dart';
-import 'dart:async';
 
 ///  token / baseUrl / 播放设置 的 KV 存储。
 /// 威胁模型是「同 WiFi 误连」，不放 Keystore（架构 §3.4/ADR-02）。
@@ -52,6 +51,3 @@ class PreferencesStore {
   int get longThresholdSec => _prefs.getInt(Constants.keyLongThresholdSec) ?? Constants.longVideoThresholdSec;
   Future<void> setLongThresholdSec(int sec) => _prefs.setInt(Constants.keyLongThresholdSec, sec);
 }
-
-/// 占位 import 防误删：Completer 在 download_db 里用
-typedef _Unused = Completer<void>;

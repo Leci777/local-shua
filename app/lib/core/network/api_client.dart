@@ -41,8 +41,8 @@ class ApiClient {
 
   /// 配对成功后调用一次。之后所有请求都打这个 baseUrl。
   void setBaseUrl(String baseUrl) {
-    _dio.options.baseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
-    // 注意 baseUrl 形如 http://192.168.1.23:57821，路径以 /api 开头
+    // baseUrl 形如 http://192.168.1.23:57821，而请求路径一律以 /api 开头，
+    // dio 是拿「主机 + 路径」重新拼的，所以这里不用补结尾斜杠
     _dio.options.baseUrl = baseUrl;
   }
 
@@ -67,7 +67,7 @@ class ApiClient {
   // ===== 文件夹 =====
 
   Future<List<Folder>> getFolders() async {
-    final list = await _getList('/api/folders');
+    final list = (await _getList('/api/folders')).cast<Map<String, dynamic>>();
     return list.map(Folder.fromJson).toList();
   }
 

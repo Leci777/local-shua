@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import '../core/models/video.dart';
+import '../../core/models/video.dart';
 
 /// 洗牌袋：随机刷的核心算法（PRD §7.3）。
 ///

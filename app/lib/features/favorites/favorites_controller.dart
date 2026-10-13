@@ -22,7 +22,9 @@ class FavoriteIdsNotifier extends StateNotifier<Set<int>> {
   /// 切换收藏。失败回滚本地状态，不装成功。
   Future<void> toggle(int videoId, bool favorite) async {
     final previous = state;
-    state = favorite ? {...state, videoId} : (state..remove(videoId));
+    // 复制一份再删：直接 state..remove() 会去改初始那个 const 集合（运行时抛错），
+    // 而且原地改同一个对象 Riverpod 不会通知界面刷新
+    state = favorite ? {...state, videoId} : (Set<int>.of(state)..remove(videoId));
     try {
       await _repo.set(videoId, favorite);
     } catch (_) {

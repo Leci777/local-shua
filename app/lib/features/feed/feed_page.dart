@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../router/providers.dart';
@@ -162,48 +163,49 @@ class _FeedPageState extends ConsumerState<FeedPage> {
   void _openMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (_) => SafeArea(
+      builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.history),
               title: const Text('播放历史'),
+              // 路由交给 go_router 管；MaterialApp.router 下用 Navigator.pushNamed 会直接抛异常
               onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/history');
+                Navigator.pop(sheetContext);
+                context.go('/history');
               },
             ),
             ListTile(
               leading: const Icon(Icons.star),
               title: const Text('收藏'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/favorites');
+                Navigator.pop(sheetContext);
+                context.go('/favorites');
               },
             ),
             ListTile(
               leading: const Icon(Icons.folder),
               title: const Text('文件夹'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/folders');
+                Navigator.pop(sheetContext);
+                context.go('/folders');
               },
             ),
             ListTile(
               leading: const Icon(Icons.download),
               title: const Text('下载管理'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/downloads');
+                Navigator.pop(sheetContext);
+                context.go('/downloads');
               },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('设置'),
               onTap: () {
-                Navigator.pop(context);
-                Navigator.pushNamed(context, '/settings');
+                Navigator.pop(sheetContext);
+                context.go('/settings');
               },
             ),
           ],

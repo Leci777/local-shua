@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme.dart';
 import '../../router/providers.dart';
@@ -25,7 +26,8 @@ class SettingsPage extends ConsumerWidget {
               onPressed: () async {
                 await prefs.clearConnection();
                 if (!context.mounted) return;
-                Navigator.of(context).pushReplacementNamed('/connect');
+                // 路由交给 go_router 管，别用 Navigator.pushReplacementNamed
+                context.go('/connect');
               },
               child: const Text('重新配对'),
             ),

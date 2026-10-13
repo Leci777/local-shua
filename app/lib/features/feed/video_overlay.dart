@@ -127,10 +127,16 @@ class VideoOverlay extends ConsumerWidget {
                         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                       ),
                       child: Slider(
-                        value: position.inMilliseconds.toDouble().clamp(
-                          0,
-                          duration.inMilliseconds > 0 ? duration.inMilliseconds.toDouble() : 1,
-                        ),
+                        // clamp 返回 num，Slider 只收 double，所以补一个 toDouble
+                        value: position.inMilliseconds
+                            .toDouble()
+                            .clamp(
+                              0,
+                              duration.inMilliseconds > 0
+                                  ? duration.inMilliseconds.toDouble()
+                                  : 1,
+                            )
+                            .toDouble(),
                         max: duration.inMilliseconds > 0
                             ? duration.inMilliseconds.toDouble()
                             : 1,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme.dart';
@@ -68,7 +69,8 @@ class _ConnectPageState extends ConsumerState<ConnectPage> {
       }
 
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed('/feed');
+      // 路由交给 go_router 管；MaterialApp.router 下用 Navigator.pushNamed 会直接抛异常
+      context.go('/feed');
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {

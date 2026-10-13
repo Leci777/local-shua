@@ -17,6 +17,8 @@ class ApiException implements Exception {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
+      // dio 5.x 新增的「转码超时」，和普通超时一个处理
+      case DioExceptionType.transformTimeout:
         return const ApiException(
           code: 'timeout',
           message: '电脑半天没反应，看看网络或者电脑是不是睡着了',

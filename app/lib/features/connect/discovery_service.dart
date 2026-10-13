@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/constants.dart';
-import '../core/logger.dart';
+import '../../core/constants.dart';
+import '../../core/logger.dart';
 
 /// UDP 发现：向局域网广播问一句「有没有本地刷服务」，服务端回 {name, port}。
 /// 只是省得手输 IP 的辅助手段——部分路由器/ColorOS 禁广播，失败就手动输（架构 §3.8）。

@@ -7,6 +7,7 @@ import '../../core/constants.dart';
 import '../../core/data/video_repository.dart';
 import '../../core/logger.dart';
 import '../../core/models/video.dart';
+import '../../core/storage/preferences_store.dart';
 import '../../router/providers.dart';
 import '../feed/shuffle_bag.dart';
 import 'player_pool.dart';
@@ -68,7 +69,7 @@ class PlaybackController extends StateNotifier<PlaybackState> {
   }
 
   final VideoRepository _repo;
-  final dynamic _prefs;
+  final PreferencesStore _prefs;
   final ShuffleBag _bag = ShuffleBag();
   final PlayerPool _pool = PlayerPool();
 

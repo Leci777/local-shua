@@ -17,8 +17,8 @@ class VideoSurface extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         fit: BoxFit.cover,
-        // 视频首帧到达前全黑屏，加个底色防闪白
-        backgroundColor: Colors.black,
+        // 视频首帧到达前全黑屏，加个底色防闪白（media_kit 的参数叫 fill）
+        fill: Colors.black,
       ),
     );
   }
