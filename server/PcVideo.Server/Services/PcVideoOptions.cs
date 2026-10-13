@@ -8,6 +8,13 @@ public class PcVideoOptions
     public string ServerName { get; set; } = "我的电脑";
     public string DataDir { get; set; } = string.Empty;
 
+    /// <summary>
+    /// 是否要求 token 鉴权。默认 false——个人自用、不对外公布，
+    /// 局域网里防的是误连不是恶意，关掉后省掉每请求一次 SQLite 查询（更快更省）。
+    /// 想开的话把 appsettings.json 的 PcVideo:RequireToken 改成 true。
+    /// </summary>
+    public bool RequireToken { get; set; }
+
     public PairingOptions Pairing { get; set; } = new();
     public ScanOptions Scan { get; set; } = new();
     public DiscoveryOptions Discovery { get; set; } = new();

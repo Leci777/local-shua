@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using PcVideo.Server.Data;
 using PcVideo.Server.Endpoints;
@@ -21,8 +22,13 @@ var dataRoot = string.IsNullOrWhiteSpace(configuredDataDir)
 Directory.CreateDirectory(Path.Combine(dataRoot, "logs"));
 
 // WinExo 没有控制台窗口，日志只进文件；排障加 --verbose 升 Debug
+// 过滤掉 ASP.NET Core 的「请求开始/结束」：刷一个视频几十个 Range 请求，
+// 每条两行日志纯属磁盘 IO 浪费（架构 §2.4）
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
+    .Filter.ByExcluding(e =>
+        e.MessageTemplate.Text == "Request starting" ||
+        e.MessageTemplate.Text == "Request finished")
     .WriteTo.File(
         Path.Combine(dataRoot, "logs", "pcvideo-.log"),
         rollingInterval: RollingInterval.Day,
@@ -37,8 +43,30 @@ try
     builder.Host.UseSerilog();
 
     builder.Services.Configure<PcVideoOptions>(builder.Configuration.GetSection("PcVideo"));
+
+    // JSON 响应压缩：视频元数据列表能压到十分之一，局域网传输更快。
+    // 只列文本类 MIME——视频流（video/*、application/octet-stream）绝不压缩，
+    // 压已经压缩过的 H.264 纯属浪费 CPU 还拖慢起播
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = false; // 本服务是 http 局域网，没有 HTTPS
+        options.MimeTypes = new[]
+        {
+            "application/json",
+            "text/plain",
+            "text/html",
+            "text/css",
+            "application/javascript",
+        };
+    });
     builder.Services.AddDbContext<PcVideoDbContext>(o =>
-        o.UseSqlite($"Data Source={Path.Combine(dataRoot, "pcvideo.db")}"));
+        o.UseSqlite($"Data Source={Path.Combine(dataRoot, "pcvideo.db")}", sqlite =>
+        {
+            // WAL：边刷视频边写进度不互相阻塞。synchronous=Normal 少几次 fsync，
+            // 断电最多丢最后一次进度写入，对「看片进度」这种数据完全够用
+            sqlite.CommandTimeout(30);
+        })
+        .AddInterceptors(new SqlitePragmaInterceptor()));
 
     // 不碰数据库的单例
     builder.Services.AddSingleton<PairingService>();
@@ -76,6 +104,7 @@ try
     }
 
     app.UseMiddleware<ApiTokenMiddleware>();
+    app.UseResponseCompression();
     app.UseStaticFiles();
 
     // 管理页首页：把当前配对码注入 HTML 再返回（架构 §2.7）。
