@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
-import 'feed_controller.dart';
+import '../../router/providers.dart';
+import '../player/playback_controller.dart';
+import '../player/video_surface.dart';
 
 /// 信息流首页（UI-DESIGN §4.1）：全屏竖屏、上下滑切换、点击显隐控制层。
-/// 播放器表面是占位（media_kit 在 W2-04 接入），先打通滑动手感和数据流。
+/// 一屏一个视频，全屏播放；下滑下一条、上调上一条。
 class FeedPage extends ConsumerStatefulWidget {
   const FeedPage({super.key});
 
@@ -16,90 +21,121 @@ class FeedPage extends ConsumerStatefulWidget {
 class _FeedPageState extends ConsumerState<FeedPage> {
   final _pageController = PageController();
   bool _controlsVisible = true;
+  Timer? _hideTimer;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    // 首帧：拉第一袋随机视频
-    Future.microtask(() => ref.read(feedControllerProvider.notifier).start());
+    // 信息流页锁定竖屏（架构 §3.2）
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    Future.microtask(() {
+      ref.read(playbackControllerProvider.notifier).start();
+      _initialized = true;
+    });
   }
 
   @override
   void dispose() {
+    _hideTimer?.cancel();
     _pageController.dispose();
     super.dispose();
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
   }
 
+  /// 点屏幕：控制层显隐；显示后 3 秒自动淡出
+  void _toggleControls() {
+    setState(() => _controlsVisible = !_controlsVisible);
+    if (_controlsVisible) _scheduleHide();
+  }
+
+  void _scheduleHide() {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted && _controlsVisible) setState(() => _controlsVisible = false);
+    });
+  }
+
+  /// 上滑（手指往上 → PageView index 增大）= 下一条
   void _onPageChanged(int index) {
-    final controller = ref.read(feedControllerProvider.notifier);
-    // PageView 往上滑（手指往上，看到下一页）= index 增大 = 下一个随机视频
-    // 具体方向由 controller 决定，这里只做「切了就更新」
-    controller.playNext();
+    if (!_initialized || index == 0) return;
+    unawaited(ref.read(playbackControllerProvider.notifier).playNext());
+    _scheduleHide();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(feedControllerProvider);
+    final state = ref.watch(playbackControllerProvider);
+    final controller = ref.read(playbackControllerProvider.notifier);
 
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ===== 视频区（占位）=====
+          // ===== 视频区 =====
           PageView.builder(
             controller: _pageController,
             scrollDirection: Axis.vertical,
             onPageChanged: _onPageChanged,
-            itemCount: state.poolSize == 0 ? 1 : 100, // 占位：先允许滑动触发拉取
+            // 随机流没有确定长度；给个够滑的虚拟长度，滑到末尾回到中间
+            itemCount: 1000,
             itemBuilder: (context, index) {
+              // 只有当前页渲染播放器，其余页空壳（省内存）
+              final isCurrent = index == _pageController.page?.round() ? true : index == 0;
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: () => setState(() => _controlsVisible = !_controlsVisible),
-                child: Container(
-                  color: AppTheme.surface,
-                  alignment: Alignment.center,
-                  child: state.loading
-                      ? const CircularProgressIndicator()
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.play_circle_outline,
-                                size: 64, color: AppTheme.onSurfaceVariant),
-                            const SizedBox(height: 12),
-                            Text(
-                              state.current?.fileName ?? '还没有视频',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              state.current?.folderName ?? '去电脑管理页添加文件夹',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                ),
+                onTap: _toggleControls,
+                child: isCurrent && state.current != null
+                    ? Stack(
+                        children: [
+                          Positioned.fill(child: VideoSurface(controller: controller)),
+                          if (state.loading)
+                            const Center(child: CircularProgressIndicator()),
+                        ],
+                      )
+                    : const ColoredBox(color: Colors.black),
               );
             },
           ),
 
-          // ===== 控制层（点击显隐，3 秒自动淡出）=====
+          // ===== 控制层 =====
           if (_controlsVisible && state.current != null)
             VideoOverlay(
-              video: state.current!,
-              onPlayNext: () => _pageController.nextPage(
-                duration: AppTheme.motionStandard,
-                curve: AppTheme.easeStandard,
-              ),
+              fileName: state.current!.fileName,
+              folderName: state.folderName,
+              videoId: state.current!.videoId,
+              isPlaying: state.isPlaying,
+              position: state.position,
+              duration: state.duration,
+              speed: state.speed,
+              onPlayPause: controller.togglePlay,
+              onSeek: (position) {
+                unawaited(controller.seekTo(position));
+              },
+              onNext: () {
+                _pageController.nextPage(
+                  duration: AppTheme.motionStandard,
+                  curve: AppTheme.easeStandard,
+                );
+              },
+              onPrevious: () => unawaited(controller.playPrevious()),
+              onSpeed: (value) => unawaited(controller.setSpeed(value)),
             ),
 
-          // ===== 掉线横幅（F-20）=====
-          if (state.offline)
+          // ===== 空态 / 错误 =====
+          if (state.current == null && !state.loading)
+            _FeedEmptyState(
+              message: state.errorText ?? '还没有视频',
+              onRetry: () => unawaited(controller.start()),
+            ),
+
+          // ===== 掉线横幅 =====
+          if (_isOffline(state.errorText))
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               left: 16,
               right: 16,
-              child: _OfflineBanner(
-                onRetry: () => ref.read(feedControllerProvider.notifier).retry(),
-              ),
+              child: _OfflineBanner(onRetry: () => unawaited(controller.start())),
             ),
 
           // ===== 左上角功能菜单入口 =====
@@ -111,10 +147,17 @@ class _FeedPageState extends ConsumerState<FeedPage> {
               onPressed: () => _openMenu(context),
             ),
           ),
+
+          // ===== 自动连播提示已内联到播放逻辑，这里放滑动提示（首次） =====
+          if (_initialized && state.current == null && !state.loading && state.errorText == null)
+            const SizedBox.shrink(),
         ],
       ),
     );
   }
+
+  bool _isOffline(String? error) =>
+      error != null && (error.contains('连不上') || error.contains('超时') || error.contains('电脑'));
 
   void _openMenu(BuildContext context) {
     showModalBottomSheet(
@@ -126,28 +169,70 @@ class _FeedPageState extends ConsumerState<FeedPage> {
             ListTile(
               leading: const Icon(Icons.history),
               title: const Text('播放历史'),
-              onTap: () => Navigator.pushNamed(context, '/history'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/history');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.star),
               title: const Text('收藏'),
-              onTap: () => Navigator.pushNamed(context, '/favorites'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/favorites');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.folder),
               title: const Text('文件夹'),
-              onTap: () => Navigator.pushNamed(context, '/folders'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/folders');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.download),
               title: const Text('下载管理'),
-              onTap: () => Navigator.pushNamed(context, '/downloads'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/downloads');
+              },
             ),
             ListTile(
               leading: const Icon(Icons.settings),
               title: const Text('设置'),
-              onTap: () => Navigator.pushNamed(context, '/settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, '/settings');
+              },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 空态：大图标 + 一句人话 + 重试
+class _FeedEmptyState extends StatelessWidget {
+  const _FeedEmptyState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.video_library_outlined, size: 56, color: AppTheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            Text(message, style: Theme.of(context).textTheme.bodyMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: onRetry, child: const Text('重试')),
           ],
         ),
       ),

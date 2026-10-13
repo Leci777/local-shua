@@ -68,6 +68,9 @@ class ShuffleBag {
     return video;
   }
 
+  /// 袋里下一个是什么（只看不拿）。预载用它判断「有没有下一条可以先加载」。
+  Video? peekNext() => _queue.isEmpty ? null : _queue.first;
+
   /// 上一条：会话光标往前挪一格。没有更早的返回 null。
   Video? previous() {
     if (_cursor <= 0) return null;
