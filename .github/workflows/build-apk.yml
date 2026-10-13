@@ -1,7 +1,7 @@
 name: Build Android APK
 
 # Cloud build for the Flutter APK.
-# Background: on the local machine, the Dart runtime cannot create named pipes
+# Background: on the local machine the Dart runtime cannot create named pipes
 # (CreateFile failed 231) due to a system policy restriction. The Dart compiler
 # (frontend_server) requires bidirectional pipe communication, so local builds
 # are impossible. The Linux runner here has no such restriction.
@@ -30,32 +30,38 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      # Print analyze output into the build log. Dart compile errors show up here
-      # first, so we do not waste 10 minutes on a build that will fail anyway.
-      - name: Analyze
+      # `flutter build bundle` runs the Dart kernel compile WITHOUT Gradle.
+      # The failing task (kernel_snapshot_program) lives in this step, so we
+      # isolate it first: it fails in ~1min instead of ~7min, and the Dart
+      # compiler error message is not swallowed by the Gradle wrapper.
+      - name: Compile Dart kernel (isolated)
         working-directory: app
         run: |
           set +e
-          flutter analyze --no-fatal-infos 2>&1 | tee analyze.log
-          echo "=====ERRORS AND WARNINGS====="
-          grep -E "(error|warning) •" analyze.log | head -60 || true
-          echo "=====ANALYZE FULL OUTPUT====="
-          cat analyze.log
+          flutter build bundle --debug 2>&1 | tee bundle.log
+          echo "=====BUNDLE EXIT: ${PIPESTATUS[0]}====="
+          echo "=====ERROR LINES====="
+          grep -inE "error|exception|failed|cannot|undefined" bundle.log | head -40 || true
+          echo "=====BUNDLE FULL OUTPUT====="
+          cat bundle.log
           exit 0
 
       - name: Build APK (arm64 first, OnePlus Ace 6 is arm64)
         working-directory: app
+        if: always()
         run: |
           set +e
           flutter build apk --release \
             --target-platform android-arm64 \
             --split-per-abi 2>&1 | tee build-arm64.log
           code=${PIPESTATUS[0]}
-          echo "=====BUILD FULL OUTPUT====="
-          cat build-arm64.log
+          echo "=====ERROR LINES====="
+          grep -inE "error|exception|failed|cannot|undefined" build-arm64.log | head -40 || true
+          echo "=====BUILD TAIL (last 80 lines)====="
+          tail -80 build-arm64.log
           exit $code
 
-      - name: Build universal APK (compatible with all Android devices)
+      - name: Build universal APK
         working-directory: app
         if: always()
         run: flutter build apk --release
