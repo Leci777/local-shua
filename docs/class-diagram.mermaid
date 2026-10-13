@@ -1,0 +1,88 @@
+classDiagram
+    class PlaybackController {
+        -PlayerPool _pool
+        -ShuffleBag _bag
+        -Timer _progressTimer
+        -VideoRef? _current
+        +Stream~PlaybackState~ stateStream
+        +openAndPlay(VideoRef ref, Duration startAt)
+        +togglePlay()
+        +seekTo(Duration position)
+        +setSpeed(double speed)
+        +playNext() / playPrevious()
+        +dispose()
+    }
+    class PlayerPool {
+        -Player _active
+        -Player? _standby
+        +Player acquireFor(VideoRef ref)
+        +promoteStandby()
+        +releaseOthers()
+    }
+    class ShuffleBag {
+        -List~int~ _queue
+        -int _cursor
+        -List~int~ _recent
+        +void refill(List~VideoDto~ batch, int excludeN)
+        +VideoDto? next()
+        +int remaining
+        +void pushRecent(int videoId)
+    }
+    class VideoRef {
+        +int videoId
+        +String? localPath
+        +String streamUrl
+        +String fileName
+    }
+    class BackgroundAudioHandler {
+        -PlaybackController _pc
+        +play() pause() seek() stop()
+        +skipToNext() skipToPrevious()
+    }
+    class ApiClient {
+        -Dio _dio
+        -String? _token
+        +Future~ServerInfo~ getServerInfo(String baseUrl)
+        +Future~String~ pair(String baseUrl, String code)
+        +Future~List~VideoDto~~ randomVideos(int limit, List~int~ folderIds, List~int~ excludeIds)
+        +Future~void~ reportProgress(int videoId, double positionSec, double durationSec)
+        +Future~void~ setFavorite(int videoId, bool isFavorite)
+    }
+    class VideoRepository {
+        -ApiClient _api
+        +Future~List~VideoDto~~ randomBatch(int limit, List~int~ folderIds, List~int~ exclude)
+    }
+    class DownloadManager {
+        -Dio _dio
+        -DownloadDb _db
+        -Queue~int~ _pending
+        -Map~int, CancelToken~ _tokens
+        -StreamController~DownloadEvent~ _events
+        +Stream~DownloadEvent~ events
+        +Future~void~ enqueue(int videoId)
+        +pause(int videoId) / resume(int videoId) / delete(int videoId)
+        +Future~bool~ hasFreeSpace(long bytes)
+    }
+    class DownloadTask {
+        +int videoId
+        +String fileName
+        +String filePath
+        +int totalBytes
+        +int receivedBytes
+        +DownloadStatus status
+        +String? errorText
+    }
+    class DownloadDb {
+        +Future~List~DownloadTask~~ all()
+        +Future~void~ upsert(DownloadTask t)
+        +Future~int~ totalBytes()
+        +Future~void~ remove(int videoId)
+    }
+    PlaybackController --> PlayerPool
+    PlaybackController --> ShuffleBag
+    PlaybackController ..> VideoRef
+    BackgroundAudioHandler --> PlaybackController
+    VideoRepository --> ApiClient
+    DownloadManager --> DownloadDb
+    DownloadManager ..> DownloadTask
+    DownloadManager --> ApiClient

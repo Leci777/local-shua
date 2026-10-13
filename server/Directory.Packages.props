@@ -1,0 +1,14 @@
+<!-- 集中包版本管理：全部写精确版本，禁止 ^/* 浮动。
+     个人工具长期存活靠「半年后还能原样构建」，浮动版本是复现性头号杀手。 -->
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
+  </ItemGroup>
+</Project>

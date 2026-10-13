@@ -1,0 +1,45 @@
+# ===== 构建产物 =====
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+
+# ===== 发布与签名（密钥类永不入库） =====
+publish/
+*.apk
+android/key.properties
+*.keystore
+*.jks
+
+# ===== 第三方工具大文件 =====
+# ffprobe zip 约 35MB，不入库；放置说明见 server/tools/ffprobe/README.md
+server/tools/ffprobe/*.zip
+
+# ===== 本地数据与日志（运行时产物，位置在 %LOCALAPPDATA%\PcVideo\） =====
+*.db
+*.db-shm
+*.db-wal
+logs/
+
+# ===== IDE =====
+.vs/
+.idea/
+.vscode/
+*.log
+
+# ===== Flutter =====
+app/.dart_tool/
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/android/local.properties
+
+# ===== 系统杂项 =====
+.DS_Store
+Thumbs.db
+
+# ===== 例外提交（应用类工程必须提交锁文件） =====
+!app/pubspec.lock
+!server/Packages.lock.json

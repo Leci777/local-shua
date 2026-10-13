@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本地刷 · 管理页</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="title-block">
+    <h1>本地刷</h1>
+    <span class="version" id="version"></span>
+  </div>
+  <div class="pair-block">
+    <div class="pair-label">配对码（5 分钟内有效）</div>
+    <div class="pair-code" id="pair-code">{{PAIR_CODE}}</div>
+    <button id="regen-code" class="btn-text">重新生成</button>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>加一个视频文件夹</h2>
+    <form id="add-folder-form" class="add-form">
+      <input id="folder-path" type="text" placeholder="文件夹路径，比如 D:\Video\电视剧" required>
+      <input id="folder-name" type="text" placeholder="显示名（可不填）">
+      <button type="submit" class="btn-primary">添加</button>
+    </form>
+    <p class="hint">只登记位置，不会动里面的文件。删文件夹也只是取消登记。</p>
+    <p class="form-error" id="add-error" hidden></p>
+  </section>
+
+  <section class="card">
+    <h2>文件夹</h2>
+    <table class="folder-table">
+      <thead>
+        <tr>
+          <th>启用</th><th>名称</th><th>路径</th><th>视频</th><th>最近扫描</th><th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="folder-rows">
+        <tr><td colspan="6" class="empty">还没添加文件夹。加一个，然后点「扫描」。</td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+
+<footer class="statusbar" id="statusbar"></footer>
+
+<script src="admin.js"></script>
+</body>
+</html>

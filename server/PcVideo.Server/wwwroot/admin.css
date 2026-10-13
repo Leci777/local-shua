@@ -1,0 +1,189 @@
+/* 本地刷管理页。深色底，对齐 App 端 UI 规范（docs/UI-DESIGN.md）。 */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0B0B0F;
+  color: #F2F2F7;
+  font: 15px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 顶栏：标题 + 配对码大字 ===== */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 28px;
+  background: #14141A;
+  border-bottom: 1px solid #26262F;
+  flex-wrap: wrap;
+}
+.title-block h1 { font-size: 22px; font-weight: 600; }
+.title-block .version { color: #A6A6B3; font-size: 13px; margin-left: 8px; }
+
+.pair-block { text-align: right; }
+.pair-label { color: #A6A6B3; font-size: 13px; }
+.pair-code {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 10px;
+  color: #FF4D6D;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  color: #5BD3C8;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.btn-text:hover { text-decoration: underline; }
+
+/* ===== 主体 ===== */
+main {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.card {
+  background: #14141A;
+  border: 1px solid #26262F;
+  border-radius: 16px;
+  padding: 20px 24px;
+}
+.card h2 { font-size: 17px; font-weight: 600; margin-bottom: 14px; }
+
+.hint { color: #A6A6B3; font-size: 13px; margin-top: 8px; }
+.form-error {
+  color: #FF6B6B;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* ===== 添加表单 ===== */
+.add-form { display: flex; gap: 10px; flex-wrap: wrap; }
+.add-form input {
+  flex: 1;
+  min-width: 220px;
+  height: 44px;
+  background: #1F1F28;
+  border: 1px solid #3A3A44;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #F2F2F7;
+  font-size: 14px;
+}
+.add-form input:focus { outline: none; border-color: #FF4D6D; }
+.add-form input::placeholder { color: #6E6E7A; }
+
+.btn-primary {
+  height: 44px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 12px;
+  background: #FF4D6D;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:active { filter: brightness(0.95); }
+
+/* ===== 文件夹表格 ===== */
+.folder-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.folder-table th {
+  text-align: left;
+  color: #A6A6B3;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-bottom: 1px solid #26262F;
+}
+.folder-table td { padding: 12px 10px; border-bottom: 1px solid #1F1F28; vertical-align: middle; }
+.folder-table tr:last-child td { border-bottom: none; }
+.folder-table .path { color: #A6A6B3; font-size: 13px; word-break: break-all; max-width: 320px; }
+.folder-table .empty { color: #A6A6B3; text-align: center; padding: 28px 0; }
+
+.row-disabled { opacity: 0.55; }
+
+.badge-unplayable {
+  display: inline-block;
+  background: #3A1622;
+  color: #FF8DA1;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-left: 8px;
+}
+.badge-scanning {
+  display: inline-block;
+  background: #123A36;
+  color: #5BD3C8;
+  font-size: 12px;
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-left: 8px;
+}
+
+/* 开关：纯 CSS，不引库 */
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider {
+  position: absolute; inset: 0;
+  background: #3A3A44;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 150ms;
+}
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  width: 18px; height: 18px;
+  left: 3px; top: 3px;
+  background: #F2F2F7;
+  border-radius: 50%;
+  transition: transform 150ms;
+}
+.switch input:checked + .slider { background: #FF4D6D; }
+.switch input:checked + .slider::before { transform: translateX(20px); }
+
+.btn-small {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #3A3A44;
+  background: #1F1F28;
+  color: #F2F2F7;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+.btn-small:hover { border-color: #FF4D6D; }
+.btn-small:disabled { opacity: 0.5; cursor: default; }
+.btn-small.danger { color: #FF6B6B; }
+.btn-small.danger:hover { border-color: #FF6B6B; }
+
+.actions { white-space: nowrap; }
+
+/* ===== 底栏：地址 ===== */
+.statusbar {
+  padding: 12px 28px;
+  background: #14141A;
+  border-top: 1px solid #26262F;
+  color: #A6A6B3;
+  font-size: 13px;
+}

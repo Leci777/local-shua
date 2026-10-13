@@ -1,0 +1,37 @@
+sequenceDiagram
+    actor U as 用户
+    participant CP as ConnectPage
+    participant AC as ApiClient
+    participant PC as 电脑服务
+    participant FR as FeedController
+    participant SB as ShuffleBag
+    participant PL as PlaybackController
+
+    U->>CP: 打开 App（本地无 token）
+    CP->>AC: getServerInfo(baseUrl)
+    AC->>PC: GET /api/server/info
+    alt 3 秒内连不上
+        PC-->>AC: 超时/连接失败
+        AC-->>CP: ApiException(连不上电脑)
+        CP-->>U: 三项检查引导：①电脑开机？②服务启动？③同一WiFi？ + 重试按钮
+    else 连上了
+        PC-->>CP: {serverName, videoCount...}
+        CP-->>U: 显示服务名与视频数
+    end
+    U->>CP: 输地址（或广播自动填入）+ 6位配对码
+    CP->>AC: pair(baseUrl, code)
+    AC->>PC: POST /api/pair
+    PC-->>AC: {token, serverName, version}
+    AC->>AC: PreferencesStore 存 token/baseUrl
+    CP->>FR: 跳转 /feed
+    FR->>AC: getFolders() 取启用文件夹 id
+    AC->>PC: GET /api/folders
+    FR->>AC: randomVideos(limit=20, folderIds, exclude)
+    AC->>PC: GET /api/videos/random
+    PC-->>SB: 20 条 VideoDto
+    SB->>SB: Fisher-Yates 洗牌入袋
+    FR->>PL: openAndPlay(袋中第一个, startAt=0)
+    PL->>PC: GET /api/videos/{id}/progress
+    PC-->>PL: {positionSec: 0, ...}
+    PL->>PC: GET /api/videos/{id}/stream（Range）
+    PC-->>PL: 206 视频流 → 首帧出现
