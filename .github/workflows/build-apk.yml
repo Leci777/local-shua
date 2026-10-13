@@ -30,53 +30,31 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      # Collect every compiler error into one file so it is readable in a single
-      # place, no matter how many separate compile passes fail.
-      - name: Collect Dart compile errors (fast, no Gradle)
+      # Build the universal APK first. It is the one most phones can install,
+      # and its output path is the most reliable signal that a build worked.
+      # No `set +e` here: a real failure must fail the job, otherwise a green
+      # check mark can hide "no APK produced" (which happened once already).
+      - name: Build universal APK
         working-directory: app
-        run: |
-          set +e
-          echo "### flutter analyze"
-          flutter analyze --no-fatal-infos 2>&1 | tee analyze.log
-          echo ""
-          echo "### flutter build bundle --release (AOT kernel compile)"
-          flutter build bundle --release 2>&1 | tee bundle.log
-          echo ""
-          echo "### COMPILE ERRORS (dart file:line:col)"
-          {
-            grep -hE "\.dart:[0-9]+:[0-9]+:" analyze.log bundle.log 2>/dev/null
-          } | sort -u | head -60
-          echo ""
-          echo "### DONE"
+        run: flutter build apk --release 2>&1 | tee build-universal.log
 
-      - name: Build APK (arm64 first, OnePlus Ace 6 is arm64)
+      - name: Build arm64 APK
         working-directory: app
         run: |
-          set +e
           flutter build apk --release \
             --target-platform android-arm64 \
             --split-per-abi 2>&1 | tee build-arm64.log
-          echo "### APK BUILD EXIT: ${PIPESTATUS[0]}"
-          echo "### DART ERRORS"
-          grep -hE "\.dart:[0-9]+:[0-9]+:" build-arm64.log 2>/dev/null | sort -u | head -40
-          echo "### LAST 60 LINES"
-          tail -60 build-arm64.log
 
-      - name: Build universal APK
-        working-directory: app
-        run: flutter build apk --release 2>&1 | tee build-universal.log || true
-
-      # Always ship the logs, so a failed run is diagnosable without screenshots.
+      # Ship the logs whatever happened. When the build fails, the log artifact
+      # is the only place the real error is visible.
       - name: Upload compile logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
           path: |
-            app/analyze.log
-            app/bundle.log
-            app/build-arm64.log
             app/build-universal.log
+            app/build-arm64.log
           retention-days: 30
           if-no-files-found: ignore
 
@@ -86,4 +64,5 @@ jobs:
           name: local-shua-apk
           path: app/build/app/outputs/flutter-apk/*.apk
           retention-days: 90
-          if-no-files-found: ignore
+          # error, not ignore: never report success without an APK
+          if-no-files-found: error
