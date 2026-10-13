@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 
@@ -45,6 +46,9 @@ public class FfprobeRunner
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
+            // 不设的话用父进程控制台代码页（中文 Windows 是 GBK），ffprobe 的 UTF-8 输出会被解成一锅粥
+            StandardOutputEncoding = Encoding.UTF8,
+            StandardErrorEncoding = Encoding.UTF8,
         };
 
         using var process = new Process { StartInfo = psi };
@@ -61,7 +65,14 @@ public class FfprobeRunner
         var timeout = TimeSpan.FromSeconds(Math.Max(5, _options.Scan.FfprobeTimeoutSeconds));
         try
         {
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
+            // 直接读原始字节，不走「按代码页解码成字符串」那道关卡——
+            // 中文路径的元数据在字符串解码里最容易出事，字节级解析一步到位
+            var stdoutMs = new MemoryStream();
+            var stderrMs = new MemoryStream();
+            var copyOut = process.StandardOutput.BaseStream.CopyToAsync(stdoutMs, ct);
+            var copyErr = process.StandardError.BaseStream.CopyToAsync(stderrMs, ct);
+            await Task.WhenAll(copyOut, copyErr);
+
             // .NET 9 没有 (TimeSpan, CT) 重载，用经典毫秒重载；超时杀进程标 unplayable
             if (!process.WaitForExit((int)timeout.TotalMilliseconds))
             {
@@ -69,9 +80,32 @@ public class FfprobeRunner
                 _logger.LogWarning("ffprobe 超时（{Timeout}s）：{File}", (int)timeout.TotalSeconds, filePath);
                 return null;
             }
-            var json = await stdoutTask;
-            if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(json)) return null;
-            return Parse(json);
+
+            var jsonBytes = stdoutMs.ToArray();
+            if (process.ExitCode != 0 || jsonBytes.Length == 0)
+            {
+                var stderrText = Encoding.UTF8.GetString(stderrMs.ToArray());
+                // 失败时把退出码和 stderr 尾巴记下来，不然「全是 unplayable」时两眼一黑
+                _logger.LogWarning(
+                    "ffprobe 探测失败：{File}，退出码 {ExitCode}，stderr：{Stderr}",
+                    filePath, process.ExitCode, Truncate(stderrText));
+                return null;
+            }
+
+            try
+            {
+                return Parse(jsonBytes);
+            }
+            catch (JsonException ex)
+            {
+                // 解析炸了把原始字节留证，排障时不用猜
+                var dump = Path.Combine(Path.GetTempPath(), $"pcvideo-ffprobe-fail-{Guid.NewGuid():N}.bin");
+                File.WriteAllBytes(dump, jsonBytes);
+                _logger.LogWarning(ex,
+                    "ffprobe 输出不是合法 JSON：{File}，原始字节已留证 {Dump}（前 64 字节：{Head}）",
+                    filePath, dump, Convert.ToHexString(jsonBytes.AsSpan(0, Math.Min(64, jsonBytes.Length))));
+                return null;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -84,8 +118,17 @@ public class FfprobeRunner
         }
     }
 
-    /// <summary>从 ffprobe JSON 里取：format.duration/bit_rate、第一个视频流、第一个音频流。</summary>
-    internal static ProbeResult? Parse(string json)
+    /// <summary>stderr 只留尾巴，避免日志被超长报错刷爆。</summary>
+    private static string Truncate(string text, int maxLength = 300)
+    {
+        if (string.IsNullOrEmpty(text)) return "(空)";
+        text = text.Trim();
+        return text.Length <= maxLength ? text : text[^maxLength..];
+    }
+
+    /// <summary>从 ffprobe JSON 里取：format.duration/bit_rate、第一个视频流、第一个音频流。
+    /// 直接吃字节：System.Text.Json 原生按 UTF-8 解析，不经过字符串解码。</summary>
+    internal static ProbeResult? Parse(ReadOnlyMemory<byte> json)
     {
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;

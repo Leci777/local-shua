@@ -25,9 +25,10 @@
     </PackageReference>
   </ItemGroup>
 
-  <!-- ffprobe zip 存在才编入（仓库不放大文件，见 tools/ffprobe/README.md） -->
-  <ItemGroup Condition="Exists('tools/ffprobe/ffprobe-win-x64.zip')">
-    <EmbeddedResource Include="tools/ffprobe/ffprobe-win-x64.zip" LogicalName="ffprobe-win-x64.zip" />
+  <!-- ffprobe zip 存在才编入（仓库不放大文件，见 tools/ffprobe/README.md）。
+       注意路径相对项目目录解析：zip 在解决方案级 server/tools/，要写 ../ -->
+  <ItemGroup Condition="Exists('../tools/ffprobe/ffprobe-win-x64.zip')">
+    <EmbeddedResource Include="../tools/ffprobe/ffprobe-win-x64.zip" LogicalName="ffprobe-win-x64.zip" />
   </ItemGroup>
 
 </Project>
