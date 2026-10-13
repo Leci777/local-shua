@@ -40,8 +40,10 @@ app/android/local.properties
 .DS_Store
 Thumbs.db
 
-# ===== 例外提交（应用类工程必须提交锁文件） =====
-!app/pubspec.lock
+# ===== 例外提交 =====
+# pubspec.lock 不提交：它在本机生成时带着旧的 media_kit 依赖树，
+# 换播放器后没更新，云端照着它装包就会和 pubspec.yaml 对不上而失败。
+# 让云端按 pubspec.yaml 重新解析更稳。
 !server/Packages.lock.json
 
 # ===== App 构建产物与本地化依赖 =====
