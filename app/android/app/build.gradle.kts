@@ -17,7 +17,7 @@ android {
     defaultConfig {
         applicationId = "com.pcvideo.local_shua"
         // media_kit(libmpv) 需要 21+；取 23，覆盖率与兼容性都合适
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://docs.flutter.dev/deployment/android#reference-the-build.gradle-file)
