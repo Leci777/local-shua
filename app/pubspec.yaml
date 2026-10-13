@@ -16,11 +16,11 @@ dependencies:
   # 路由
   go_router: ^14.6.2
 
-  # 播放内核（架构 §4.2：libmpv，格式兼容最全）
-  # 注意版本线：media_kit 本体 1.x，libs_video 是独立的 1.0.x，两者不同步升
-  media_kit: ^1.2.6
-  media_kit_libs_video: ^1.0.7
-  media_kit_video: ^1.3.1
+  # 播放内核：系统播放器（Android 走 ExoPlayer 原生解码）
+  # 原来用 media_kit(libmpv) 格式兼容更全，但它的原生库要从 GitHub 下载，
+  # 国内网络不稳会导致构建失败（而且每次多等好几分钟）。
+  # 你的视频主要是 h264+aac，系统播放器完全支持；少量 hevc 一加 Ace 6 也能硬解。
+  video_player: ^2.10.0
 
   # 网络 + Range 下载（架构 §3.8）
   dio: ^5.7.0

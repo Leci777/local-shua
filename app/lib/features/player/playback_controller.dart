@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:media_kit/media_kit.dart';
+import 'package:video_player/video_player.dart';
 
 import '../../core/constants.dart';
 import '../../core/data/video_repository.dart';
@@ -75,22 +75,10 @@ class PlaybackController extends StateNotifier<PlaybackState> {
 
   Timer? _progressTimer;
   DateTime _lastReportAt = DateTime.fromMillisecondsSinceEpoch(0);
-  bool _hasMediaKitInit = false;
 
   // ===== 生命周期 =====
 
-  /// media_kit 全局初始化。App 启动时调一次。
-  static void ensureMediaKitInitialized() {
-    // media_kit 要求先 init；重复初始化会抛错，所以用静态标记挡一下
-    if (_mediaKitInitDone) return;
-    MediaKit.ensureInitialized();
-    _mediaKitInitDone = true;
-  }
-
-  static bool _mediaKitInitDone = false;
-
   Future<void> start() async {
-    ensureMediaKitInitialized();
     if (state.current != null || state.loading) return;
     _startProgressTimer();
     await _fetchMore(initial: true);
@@ -162,40 +150,48 @@ class PlaybackController extends StateNotifier<PlaybackState> {
       folderName: video.folderName,
     );
 
+    // 系统播放器不支持「先 open 再 seek」，得先 initialize 再跳进度
     final player = _pool.acquire();
     _bindStreams(player);
 
     try {
+      await player.initialize();
       if (startAt > Duration.zero) {
-        await player.open(Media(ref.mediaUrl), play: true);
-        await player.seek(startAt);
-      } else {
-        await player.open(Media(ref.mediaUrl), play: true);
+        await player.seekTo(startAt);
       }
-      state = state.copyWith(loading: false, isPlaying: true);
+      await player.play();
+      state = state.copyWith(
+        loading: false,
+        isPlaying: true,
+        duration: player.value.duration,
+      );
     } catch (e) {
       dLog('打开视频失败：$e');
       state = state.copyWith(loading: false, errorText: '这条没加载上，滑走试试');
     }
   }
 
-  void _bindStreams(Player player) {
-    player.stream.playing.listen((playing) {
-      if (!identical(player, _pool.active)) return; // 旧播放器的回调，忽略
-      state = state.copyWith(isPlaying: playing);
-      if (!playing) _reportProgress(force: true); // 暂停立刻上报
-    });
+  void _bindStreams(VideoPlayerController player) {
+    player.addListener(_onTick);
+  }
 
-    player.stream.position.listen((position) {
-      if (!identical(player, _pool.active)) return;
-      state = state.copyWith(position: position);
-      // 拖动结束由 UI 调 reportProgressNow
-    });
+  /// video_player 只有单一流，没有 media_kit 那样分开的 playing/position/duration 流，
+  /// 所以挂一个 listener 按需轮询。这样也不需要额外的 Timer。
+  void _onTick() {
+    final player = _pool.activeOrNull;
+    if (player == null || !player.value.isInitialized) return;
+    final v = player.value;
 
-    player.stream.duration.listen((duration) {
-      if (!identical(player, _pool.active)) return;
-      state = state.copyWith(duration: duration);
-    });
+    if (state.isPlaying != v.isPlaying) {
+      state = state.copyWith(isPlaying: v.isPlaying);
+      if (!v.isPlaying) _reportProgress(force: true); // 暂停立刻上报
+    }
+    if (state.position != v.position) {
+      state = state.copyWith(position: v.position);
+    }
+    if (state.duration != v.duration) {
+      state = state.copyWith(duration: v.duration);
+    }
   }
 
   /// 下一条（下滑）
@@ -213,28 +209,34 @@ class PlaybackController extends StateNotifier<PlaybackState> {
   }
 
   void togglePlay() {
-    final player = _pool.active;
+    final player = _pool.activeOrNull;
+    if (player == null) return;
     if (state.isPlaying) {
-      player.pause();
+      unawaited(player.pause());
     } else {
-      player.play();
+      unawaited(player.play());
     }
   }
 
   Future<void> seekTo(Duration position) async {
-    await _pool.active.seek(position);
+    final player = _pool.activeOrNull;
+    if (player == null) return;
+    await player.seekTo(position);
     state = state.copyWith(position: position);
     _reportProgress(force: true);
   }
 
   /// 倍速：0.5 / 1.0 / 1.25 / 1.5 / 2.0（PRD F-10）
   Future<void> setSpeed(double speed) async {
-    await _pool.active.setRate(speed);
+    final player = _pool.activeOrNull;
+    if (player != null) {
+      await player.setPlaybackSpeed(speed);
+    }
     state = state.copyWith(speed: speed);
     await _prefs.setSpeed(speed);
   }
 
-  Player get player => _pool.active;
+  VideoPlayerController get player => _pool.active;
 
   // ===== 进度上报（时间 + 事件双触发，架构 §4.4）=====
 
@@ -269,6 +271,7 @@ class PlaybackController extends StateNotifier<PlaybackState> {
   @override
   void dispose() {
     _progressTimer?.cancel();
+    _pool.activeOrNull?.removeListener(_onTick);
     unawaited(_pool.releaseAll());
     super.dispose();
   }

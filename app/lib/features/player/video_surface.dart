@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:media_kit_video/media_kit_video.dart';
+import 'package:video_player/video_player.dart';
 
-/// 视频显示面：包一层 media_kit 的 Video，保证控制器唯一。
+/// 视频显示面：包一层系统播放器的 Texture，首帧到达前显示黑底。
 /// 不用 AutomaticKeepAlive——切视频时整棵 PageView item 会重建。
 class VideoSurface extends StatelessWidget {
   const VideoSurface({super.key, required this.controller});
@@ -10,16 +10,22 @@ class VideoSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final player = controller.player as VideoPlayerController;
     return ColoredBox(
       color: Colors.black,
-      child: Video(
-        controller: controller.player,
-        width: double.infinity,
-        height: double.infinity,
-        fit: BoxFit.cover,
-        // 视频首帧到达前全黑屏，加个底色防闪白（media_kit 的参数叫 fill）
-        fill: Colors.black,
-      ),
+      child: player.value.isInitialized
+          // cover 铺满：竖屏刷视频必须填满，contain 会留黑边
+          ? FittedBox(
+              fit: BoxFit.cover,
+              clipBehavior: Clip.hardEdge,
+              child: SizedBox(
+                width: player.value.size.width,
+                height: player.value.size.height,
+                child: VideoPlayer(player),
+              ),
+            )
+          // 首帧还没到，先占住黑屏免得闪一下白
+          : const SizedBox.expand(),
     );
   }
 }
