@@ -5,7 +5,10 @@ import '../../router/providers.dart';
 
 /// 收藏 id 集合 + 切换。信息流星星按钮和收藏列表页共用。
 class FavoriteIdsNotifier extends StateNotifier<Set<int>> {
-  FavoriteIdsNotifier(this._repo) : super const <int>{};
+  // 初始空集合。用 <int>{} 而不是 const <int>{}——编译器在常量表达式里
+  // 求值这个泛型字面量会报「返回类型 int 不允许 null」。
+  // 这里本来也从不原地改它（toggle 每次都新建 Set），不需要 const。
+  FavoriteIdsNotifier(this._repo) : super(<int>{});
 
   final FavoriteRepository _repo;
 
@@ -22,9 +25,11 @@ class FavoriteIdsNotifier extends StateNotifier<Set<int>> {
   /// 切换收藏。失败回滚本地状态，不装成功。
   Future<void> toggle(int videoId, bool favorite) async {
     final previous = state;
-    // 复制一份再删：直接 state..remove() 会去改初始那个 const 集合（运行时抛错），
-    // 而且原地改同一个对象 Riverpod 不会通知界面刷新
-    state = favorite ? {...state, videoId} : (Set<int>.of(state)..remove(videoId));
+    // 复制一份再改：直接 state..remove() 是原地改，Riverpod 靠比较引用决定要不要
+    // 刷新界面，原地改界面不会重建，而且失败时也没法干净回滚。
+    state = favorite
+        ? Set<int>.of(state)..add(videoId)
+        : (Set<int>.of(state)..remove(videoId));
     try {
       await _repo.set(videoId, favorite);
     } catch (_) {
