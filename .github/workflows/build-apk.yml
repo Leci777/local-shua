@@ -29,19 +29,33 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      - name: 静态检查（发现问题先报出来，别让坏代码进 APK）
+      # 静态检查的结果直接打进构建日志——Dart 的编译错误信息最全，
+      # 这一步能提前暴露代码问题，不用等 10 分钟才知道白跑。
+      - name: 静态检查
         working-directory: app
-        run: flutter analyze --no-fatal-infos || true
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos 2>&1 | tee analyze.log
+          echo "analyze 退出码: ${PIPESTATUS[0]}"
+          echo "=====错误与警告汇总====="
+          grep -E "^\s+(error|warning)" analyze.log | head -60 || echo "（无error/warning）"
+          exit 0
 
       - name: 构建 APK（arm64 为主，一加 Ace 6 是 arm64）
         working-directory: app
         run: |
+          set +e
           flutter build apk --release \
             --target-platform android-arm64 \
-            --split-per-abi
+            --split-per-abi 2>&1 | tee build-arm64.log
+          code=${PIPESTATUS[0]}
+          echo "=====构建输出全文====="
+          cat build-arm64.log
+          exit $code
 
       - name: 同时构建通用包（兼容所有安卓机）
         working-directory: app
+        if: always()
         run: flutter build apk --release
 
       - name: 上传 APK 产物
