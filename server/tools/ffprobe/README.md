@@ -6,14 +6,14 @@
 
 去 FFmpeg 官方 Windows 静态构建二选一：
 
-- https://www.gyan.dev/ffmpeg/builds/ （取 release full 的 7z/zip）
+- https://www.gyan.dev/ffmpeg/builds/ （取 release essentials 的 zip）
 - https://ffmpeg.org/download.html#build-windows （找 Windows builds 链接）
 
-解压后只需要两个东西：`ffprobe.exe` 和同批 DLL（avcodec-*.dll 等，缺了 ffprobe 起不来）。
+**版本说明**：gyan.dev 9.x 的 essentials 构建是静态链接——`bin/` 下只有 `ffmpeg.exe` / `ffplay.exe` / `ffprobe.exe` 三个大文件（各约 105MB），没有 DLL，`ffprobe.exe` 单文件即可运行。早期动态链接构建才需要连 DLL 一起拷。
 
 ## 放置
 
-把 `ffprobe.exe` 和所有 DLL 一起打成 zip，命名为：
+把 `ffprobe.exe` 打成 zip，命名为：
 
 ```
 ffprobe-win-x64.zip
