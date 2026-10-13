@@ -31,17 +31,21 @@ jobs:
         run: flutter pub get
 
       # `flutter build bundle` runs the Dart kernel compile WITHOUT Gradle.
-      # The failing task (kernel_snapshot_program) lives in this step, so we
-      # isolate it first: it fails in ~1min instead of ~7min, and the Dart
-      # compiler error message is not swallowed by the Gradle wrapper.
-      - name: Compile Dart kernel (isolated)
+      # Two reasons this step exists:
+      #  1. The failing task (kernel_snapshot_program) lives here, so isolating it
+      #     fails in ~1min instead of ~7min, and the Dart compiler error message is
+      #     not swallowed by the Gradle wrapper.
+      #  2. Use --release (AOT). Some compile errors only surface in the AOT pass,
+      #     e.g. a `const <int>{}` initializer, which is accepted in debug/JIT but
+      #     rejected when the kernel is generated for release.
+      - name: Compile Dart kernel (isolated, AOT)
         working-directory: app
         run: |
           set +e
-          flutter build bundle --debug 2>&1 | tee bundle.log
+          flutter build bundle --release 2>&1 | tee bundle.log
           echo "=====BUNDLE EXIT: ${PIPESTATUS[0]}====="
-          echo "=====ERROR LINES====="
-          grep -inE "error|exception|failed|cannot|undefined" bundle.log | head -40 || true
+          echo "=====ERROR SUMMARY====="
+          grep -nE "\.dart:[0-9]+:[0-9]+: (Error|error)" bundle.log | head -40 || true
           echo "=====BUNDLE FULL OUTPUT====="
           cat bundle.log
           exit 0
