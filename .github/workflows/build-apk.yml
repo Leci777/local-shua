@@ -6,7 +6,7 @@ name: 构建 Android APK
 # 云端环境无此限制，直接标准构建即可。
 on:
   push:
-    branches: [ cloud-build ]
+    branches: [ main, master, cloud-build ]
   workflow_dispatch:   # 支持手动触发
 
 jobs:
