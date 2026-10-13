@@ -1,0 +1,12 @@
+# 保持 shell 脚本为 LF 行尾。
+# Windows 上 git 默认会把 LF 转成 CRLF，CRLF 的 gradlew 在 Linux CI 上
+# 会因为 "/bin/sh^M: Syntax error" 直接失败。
+*.sh text eol=lf
+gradlew text eol=lf
+
+# 二进制文件不做行尾转换
+*.jar binary
+*.png binary
+*.jpg binary
+*.so binary
+*.aar binary

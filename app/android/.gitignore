@@ -1,11 +1,13 @@
-gradle-wrapper.jar
 /.gradle
 /captures/
-/gradlew
-/gradlew.bat
 /local.properties
 GeneratedPluginRegistrant.java
 .cxx/
+
+# Gradle wrapper 必须进仓库：云端/CI clone 下来要靠它驱动构建。
+# 原来的 Flutter 模板把 gradlew* 和 gradle-wrapper.jar 排除了，
+# 结果 CI 上没有 wrapper 可用，APK 构建直接失败。
+!.gitattributes
 
 # Remember to never publicly share your keystore.
 # See https://flutter.dev/to/reference-keystore

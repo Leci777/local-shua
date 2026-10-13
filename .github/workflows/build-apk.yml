@@ -30,17 +30,28 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      # local.properties is gitignored (it holds machine-local paths), but the
+      # Gradle settings file reads flutter.sdk from it and fails without it.
+      - name: Write local.properties
+        run: |
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > app/android/local.properties
+          printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" >> app/android/local.properties
+          cat app/android/local.properties
+
       # Build the universal APK first. It is the one most phones can install,
       # and its output path is the most reliable signal that a build worked.
       # No `set +e` here: a real failure must fail the job, otherwise a green
       # check mark can hide "no APK produced" (which happened once already).
       - name: Build universal APK
         working-directory: app
-        run: flutter build apk --release 2>&1 | tee build-universal.log
+        run: |
+          set -o pipefail
+          flutter build apk --release 2>&1 | tee build-universal.log
 
       - name: Build arm64 APK
         working-directory: app
         run: |
+          set -o pipefail
           flutter build apk --release \
             --target-platform android-arm64 \
             --split-per-abi 2>&1 | tee build-arm64.log
