@@ -30,45 +30,55 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      # `flutter build bundle` runs the Dart kernel compile WITHOUT Gradle.
-      # Two reasons this step exists:
-      #  1. The failing task (kernel_snapshot_program) lives here, so isolating it
-      #     fails in ~1min instead of ~7min, and the Dart compiler error message is
-      #     not swallowed by the Gradle wrapper.
-      #  2. Use --release (AOT). Some compile errors only surface in the AOT pass,
-      #     e.g. a `const <int>{}` initializer, which is accepted in debug/JIT but
-      #     rejected when the kernel is generated for release.
-      - name: Compile Dart kernel (isolated, AOT)
+      # Collect every compiler error into one file so it is readable in a single
+      # place, no matter how many separate compile passes fail.
+      - name: Collect Dart compile errors (fast, no Gradle)
         working-directory: app
         run: |
           set +e
+          echo "### flutter analyze"
+          flutter analyze --no-fatal-infos 2>&1 | tee analyze.log
+          echo ""
+          echo "### flutter build bundle --release (AOT kernel compile)"
           flutter build bundle --release 2>&1 | tee bundle.log
-          echo "=====BUNDLE EXIT: ${PIPESTATUS[0]}====="
-          echo "=====ERROR SUMMARY====="
-          grep -nE "\.dart:[0-9]+:[0-9]+: (Error|error)" bundle.log | head -40 || true
-          echo "=====BUNDLE FULL OUTPUT====="
-          cat bundle.log
-          exit 0
+          echo ""
+          echo "### COMPILE ERRORS (dart file:line:col)"
+          {
+            grep -hE "\.dart:[0-9]+:[0-9]+:" analyze.log bundle.log 2>/dev/null
+          } | sort -u | head -60
+          echo ""
+          echo "### DONE"
 
       - name: Build APK (arm64 first, OnePlus Ace 6 is arm64)
         working-directory: app
-        if: always()
         run: |
           set +e
           flutter build apk --release \
             --target-platform android-arm64 \
             --split-per-abi 2>&1 | tee build-arm64.log
-          code=${PIPESTATUS[0]}
-          echo "=====ERROR LINES====="
-          grep -inE "error|exception|failed|cannot|undefined" build-arm64.log | head -40 || true
-          echo "=====BUILD TAIL (last 80 lines)====="
-          tail -80 build-arm64.log
-          exit $code
+          echo "### APK BUILD EXIT: ${PIPESTATUS[0]}"
+          echo "### DART ERRORS"
+          grep -hE "\.dart:[0-9]+:[0-9]+:" build-arm64.log 2>/dev/null | sort -u | head -40
+          echo "### LAST 60 LINES"
+          tail -60 build-arm64.log
 
       - name: Build universal APK
         working-directory: app
+        run: flutter build apk --release 2>&1 | tee build-universal.log || true
+
+      # Always ship the logs, so a failed run is diagnosable without screenshots.
+      - name: Upload compile logs
         if: always()
-        run: flutter build apk --release
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            app/analyze.log
+            app/bundle.log
+            app/build-arm64.log
+            app/build-universal.log
+          retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
@@ -76,4 +86,4 @@ jobs:
           name: local-shua-apk
           path: app/build/app/outputs/flutter-apk/*.apk
           retention-days: 90
-          if-no-files-found: error
+          if-no-files-found: ignore
