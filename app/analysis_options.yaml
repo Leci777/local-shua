@@ -4,6 +4,14 @@ analyzer:
   errors:
     # TODO 不许进主干：要么做完，要么删掉写清楚为什么留
     todo: ignore
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

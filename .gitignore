@@ -43,3 +43,8 @@ Thumbs.db
 # ===== 例外提交（应用类工程必须提交锁文件） =====
 !app/pubspec.lock
 !server/Packages.lock.json
+
+# ===== App 构建产物与本地化依赖 =====
+app/vendor/
+app/tool/__pycache__/
+app/android/local.properties
